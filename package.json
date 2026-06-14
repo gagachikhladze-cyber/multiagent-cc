@@ -1,0 +1,5 @@
+{
+  "name": "multiagent-cc",
+  "version": "1.0.0",
+  "description": "Route any task to the right free AI agent — mimo, opencode, gemini, codex. Claude Pro stays as director."
+}
