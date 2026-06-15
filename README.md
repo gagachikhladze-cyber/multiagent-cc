@@ -1,18 +1,21 @@
 # multiagent-cc
 
-Claude Code plugin that routes tasks to the right free or cheap AI agent — so Claude Pro stays as **director**, not worker.
+A Claude Code plugin that turns Claude into a **director**. Claude doesn't write the code or content itself — it routes each task to a free or cheap CLI agent (opencode, gemini, mimo, codex), runs it on your **real project**, reviews the result, and reports back. You save Claude tokens; the workers do the labor.
 
 ## The idea
 
-Claude Pro tokens are expensive. Most tasks (routine code, drafts, research) don't need Claude Pro. This plugin adds a `/delegate` command that:
+```
+You → /delegate "task"
+        │
+        ▼
+   Claude = DIRECTOR  ──run in your project dir──►  opencode · gemini · mimo · codex
+        │                                                    │ (edit real files)
+        └──────────── reviews + reports ◄────────────────────┘
+```
 
-1. Classifies your task (Code / Content / Research / Image / Business / Document)
-2. Picks the right agent from the stack
-3. Outputs the exact CLI command to run
-4. Tells Claude Pro its role as orchestrator
-
-Claude Pro handles: architecture decisions, final reviews, orchestration.  
-Everything else goes to: mimo, OpenCode, Gemini CLI, or Codex.
+Claude handles: classification, routing, review, orchestration.
+Workers handle: writing code, drafting content, research, refactors.
+Claude only does the work itself if **every** fallback agent fails.
 
 ---
 
@@ -22,78 +25,77 @@ Everything else goes to: mimo, OpenCode, Gemini CLI, or Codex.
 /plugin marketplace add gagachikhladze-cyber/multiagent-cc
 ```
 
-Then install the free agents:
+Then once:
 
 ```bash
 /setup
 ```
+
+`/setup` installs all four agents and writes a small state file so `/delegate` never has to re-check tools on every call.
 
 ---
 
 ## Usage
 
 ```bash
-/delegate write unit tests for auth.py
-/delegate research competitors of Lumen Studio photography
-/delegate write an Instagram caption for a wedding photo
+/delegate write unit tests for src/auth.py
+/delegate --review refactor the booking flow to remove duplication
+/delegate --parallel build the API routes and the React components
+/delegate research the 2026 wedding-photography pricing in Kutaisi
 ```
 
-Or call the routing skill directly in any conversation — Claude will use it automatically.
+- **`--review`** — Claude reads the changed files, runs build/test, and (for code) can send it to codex for an adversarial check. Default review is minimal (just `git diff --stat` + the agent's summary) to keep token use low.
+- **`--parallel`** — Claude splits the task into subtasks with **non-overlapping file scopes** and runs several agents at once, so they never collide. Default is one-at-a-time.
+
+You can also just ask in plain language ("delegate this and verify it carefully" / "split this across agents").
 
 ---
 
-## Agent Stack
+## Agent stack
 
-| Agent | Cost | Best For |
-|-------|------|----------|
-| **mimo** | Free (early access) | Long-horizon code, 50+ steps |
-| **OpenCode Zen Free** | Free | Routine code, non-sensitive |
-| **OpenCode Go** | $10/mo | Any task, zero data retention |
-| **Gemini CLI** | Free 1,000/day | Research, large docs, fallback |
-| **Codex (GPT-5.4/5.5)** | ChatGPT Plus | Code review, adversarial checks |
+| Agent | Role | Cost |
+|-------|------|------|
+| **opencode** | Default code & content worker (many models via `-m`) | Zen Free / Go $10/mo (zero-retention) |
+| **gemini** (antigravity) | Research, Google-grounded, big context, fallback | Free 1,000/day |
+| **mimo** | Long-horizon autonomous coding (50+ steps) | Free (early access) |
+| **codex** | Reviewer / adversarial checker for critical code | ChatGPT Plus $20/mo |
 
 ### Fallback chain (code)
 ```
-mimo → OpenCode Go → OpenCode Zen Free → Gemini CLI → Codex mini → Claude Pro
+opencode/mimo-v2.5-free → opencode-go/deepseek-v4-flash
+  → opencode-go/mimo-v2.5-pro → gemini → Claude (last resort)
 ```
+
+### Notes
+- **Georgian** works well on OpenCode Go DeepSeek and on Gemini — not only Claude.
+- **DeepSeek Zen Free** stores data → use for public/non-sensitive code only. OpenCode Go's DeepSeek is zero-retention.
+- opencode must be **≥ 1.17** (older builds have a SQLite `run` bug); `/setup` handles the upgrade.
 
 ---
 
 ## What's included
 
-- `/delegate [task]` — slash command: classify and route any task
-- `delegate` skill — full routing logic for all 7 task categories
-- `setup` skill — step-by-step install guide for all free agents
-
----
+```
+multiagent-cc/
+├── commands/
+│   ├── delegate.md   → /delegate [--review] [--parallel] <task>
+│   └── setup.md      → /setup
+└── skills/
+    ├── delegate/     → director routing, execution, review, parallel
+    └── setup/        → install all agents + write state.json
+```
 
 ## What's NOT included
 
-- API credentials or personal keys
-- Proxy configuration (personal setup)
-- ClickUp/Gmail/Telegram MCP config (install separately)
-
----
-
-## Supported task categories
-
-- **Code** — mimo, OpenCode Zen/Go, Gemini CLI, Codex
-- **Research** — Gemini CLI, WebSearch, deep-research skill
-- **Content / Marketing** — OpenCode Go (Georgian + English), PM skills, Meta Ads MCP
-- **Image / Video** — Higgsfield MCP
-- **Business / PM** — PM skills, ClickUp MCP
-- **Communication** — Gmail / Telegram / Calendar MCP
-- **Documents** — anthropic-skills (PDF, PPTX, DOCX, XLSX)
-
----
+- API keys / credentials — one-time browser logins stay yours (gemini Google auth, opencode `/connect`, codex `login`)
+- OpenCode proxy setup (personal)
+- MCP server config (ClickUp / Gmail / Telegram etc. — install separately)
 
 ## Requirements
 
 - Claude Code (CLI or desktop)
-- Node.js 18+ (for npm installs)
-- Optional: ChatGPT Plus for Codex, OpenCode Go subscription for zero-retention models
-
----
+- Node.js 18+
+- Optional: ChatGPT Plus (codex), OpenCode Go subscription (zero-retention models)
 
 ## License
 
