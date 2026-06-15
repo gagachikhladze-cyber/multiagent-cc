@@ -19,7 +19,7 @@ Everything else goes to: mimo, OpenCode, Gemini CLI, or Codex.
 ## Install
 
 ```bash
-/plugin marketplace add gagachikhladze/multiagent-cc
+/plugin marketplace add gagachikhladze-cyber/multiagent-cc
 ```
 
 Then install the free agents:
