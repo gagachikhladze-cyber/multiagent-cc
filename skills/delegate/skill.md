@@ -1,96 +1,157 @@
 ---
 name: delegate
-description: Route any task to the right free AI agent and EXECUTE it automatically. Use this before any coding, content, research, image/video, or business task.
+description: Pre-flight check tools, auto-install missing ones, execute the task via the right free agent, return the result. Use for any coding, content, research, image/video, or business task.
 ---
 
-# Delegate — Auto-Execute Tasks via Free AI Agents
+# Delegate — Check → Install → Execute → Return
 
-Claude Pro acts as **director**. You classify the task, pick the agent, run the command via Bash tool, and return the result. Do NOT just describe what to do — actually DO it.
-
-## Execution Protocol
-
-For every delegated task:
-1. Classify: Code / Content / Research / Image / Business / Document
-2. Pick agent from routing table below
-3. **Run the command via Bash tool** — do not ask permission
-4. Return the result to the user
-5. If agent fails → cascade to next in fallback chain
+Claude Pro is the **director**. You handle the full pipeline automatically.
 
 ---
 
-## Routing & Commands
+## Step 1 — Pre-flight Check (always run first)
+
+Before executing any task, run ALL of these checks in parallel via Bash tool:
+
+```bash
+# Check opencode
+opencode --version 2>&1
+
+# Check gemini  
+gemini --version 2>&1
+
+# Check mimo
+mimo --version 2>&1
+
+# Check opencode providers (auth)
+opencode providers list 2>&1
+```
+
+---
+
+## Step 2 — Auto-Install Missing Tools
+
+For each tool that is missing or errors, install it automatically:
+
+### opencode missing:
+```bash
+npm install -g opencode-ai@latest
+```
+Then verify providers are connected:
+```bash
+opencode providers list 2>&1
+```
+If providers show 0 credentials, inform user they need to run `opencode` TUI once to connect OpenCode Go/Zen.
+
+### gemini missing:
+```bash
+npm install -g @google/gemini-cli@latest
+```
+Then test if auth works:
+```bash
+gemini -p "hello" --skip-trust 2>&1
+```
+If auth fails (exit code non-zero), inform user to run `gemini` once in terminal to log in with Google account, then retry.
+
+### mimo missing:
+```bash
+npm install -g @mimo-ai/cli 2>&1
+```
+If install fails, try curl install:
+```bash
+curl -fsSL https://mimo.xiaomi.com/install | bash 2>&1
+```
+If mimo still unavailable after install, skip and use opencode as fallback — do not block task execution.
+
+### opencode outdated (version < 1.17.0):
+```bash
+npm install -g opencode-ai@latest
+```
+
+---
+
+## Step 3 — Execute Task
+
+After confirming tools are ready, execute based on task type:
 
 ### Code
 
-| Situation | Command to Run |
-|-----------|----------------|
+| Situation | Command |
+|-----------|---------|
 | Routine, non-sensitive | `opencode run "<task>" -m opencode/mimo-v2.5-free --dangerously-skip-permissions` |
 | Routine, sensitive data | `opencode run "<task>" -m opencode-go/deepseek-v4-flash --dangerously-skip-permissions` |
 | Complex algorithm | `opencode run "<task>" -m opencode-go/kimi-k2.7-code --dangerously-skip-permissions` |
-| Quality code / quality | `opencode run "<task>" -m opencode-go/mimo-v2.5-pro --dangerously-skip-permissions` |
+| Quality / production | `opencode run "<task>" -m opencode-go/mimo-v2.5-pro --dangerously-skip-permissions` |
+| Long-horizon, 50+ steps | `mimo "<task>" --non-interactive` (if installed) |
 | Large codebase research | `gemini -p "<task>" --skip-trust --yolo` |
 
-### Research & Analysis
+### Research
 
-| Situation | Command to Run |
-|-----------|----------------|
-| Quick question | `gemini -p "<question>" --skip-trust` |
-| Deep research | `gemini -p "<question>" --skip-trust` |
-| Google-grounded | `gemini -p "<question>" --skip-trust` |
+| Situation | Command |
+|-----------|---------|
+| Any research question | `gemini -p "<question>" --skip-trust` |
+| Deep / multi-source | `gemini -p "<question>" --skip-trust` |
 
 ### Content & Marketing
 
-| Situation | Command to Run |
-|-----------|----------------|
+| Situation | Command |
+|-----------|---------|
 | Georgian text (fast) | `opencode run "<task>" -m opencode-go/deepseek-v4-flash --dangerously-skip-permissions` |
 | Georgian text (quality) | `gemini -p "<task>" --skip-trust` |
-| English text (routine) | `opencode run "<task>" -m opencode-go/qwen3.7-plus --dangerously-skip-permissions` |
-| English text (quality) | `opencode run "<task>" -m opencode-go/qwen3.7-max --dangerously-skip-permissions` |
-| Social media / copywriting | Claude: invoke relevant skill (`/social-content`, `/copywriting`, etc.) |
-| Facebook/Meta ads | Claude: use Meta Ads MCP tools |
+| English text | `opencode run "<task>" -m opencode-go/qwen3.7-plus --dangerously-skip-permissions` |
+| Social media / copywriting | Invoke relevant skill (`/social-content`, `/copywriting`, etc.) |
+| Facebook/Meta ads | Use Meta Ads MCP tools |
 
-### Image & Video
+### Image / Video
 
 | Situation | Action |
 |-----------|--------|
-| Image generation | Claude: call Higgsfield MCP `generate_image` |
-| Video generation | Claude: call Higgsfield MCP `generate_video` |
-| Product photoshoot | Claude: invoke `/higgsfield-product-photoshoot` skill |
+| Image | Call Higgsfield MCP `generate_image` |
+| Video | Call Higgsfield MCP `generate_video` |
+| Product photoshoot | Invoke `/higgsfield-product-photoshoot` skill |
 
 ### Business / PM
 
 | Situation | Action |
 |-----------|--------|
-| Task management | Claude: use ClickUp MCP |
-| PRD, OKRs, Sprint | Claude: invoke relevant PM skill |
+| Tasks | Use ClickUp MCP |
+| PRD, OKRs, Sprint | Invoke relevant PM skill |
 | Georgian business doc | `opencode run "<task>" -m opencode-go/deepseek-v4-flash --dangerously-skip-permissions` |
 
 ### Communication
 
 | Situation | Action |
 |-----------|--------|
-| Gmail | Claude: use Gmail MCP |
-| Telegram | Claude: use Telegram MCP |
-| Calendar | Claude: use Calendar MCP |
+| Gmail | Use Gmail MCP |
+| Telegram | Use Telegram MCP |
+| Calendar | Use Calendar MCP |
 
 ### Documents
 
 | Situation | Action |
 |-----------|--------|
-| PDF / PPTX / DOCX / XLSX | Claude: invoke `/anthropic-skills:pdf/pptx/docx/xlsx` |
+| PDF / PPTX / DOCX / XLSX | Invoke `/anthropic-skills:pdf/pptx/docx/xlsx` |
 
 ---
 
-## Fallback Chain
+## Step 4 — Return Result
 
-If a command fails or hits limit, try next:
+After execution:
+- Return the full agent output to the user
+- If the result is code: show it directly
+- If the result is text/content: show it directly
+- If execution failed: show error + run fallback automatically
+
+---
+
+## Fallback Chain (auto-cascade on failure)
 
 ```
 Code:
-  opencode/mimo-v2.5-free (Zen, free)
-    → opencode-go/deepseek-v4-flash (Go, paid, zero-retention)
-    → opencode-go/mimo-v2.5-pro (Go)
-    → gemini --skip-trust (free 1,000/day)
+  opencode/mimo-v2.5-free
+    → opencode-go/deepseek-v4-flash
+    → opencode-go/mimo-v2.5-pro
+    → gemini -p "..." --skip-trust
     → Claude Pro (last resort)
 
 Content/Research (Georgian):
@@ -104,16 +165,19 @@ Content/Research (English):
     → Claude Pro
 ```
 
+On any command failure: catch the error, log it, try next in chain automatically.
+
 ---
 
-## Critical Rules
+## Rules
 
-- **Always execute via Bash tool** — never just print the command
-- **`--dangerously-skip-permissions`** on all `opencode run` calls — prevents interactive prompts
-- **`--skip-trust`** on all `gemini` calls — required for non-interactive use
-- **DeepSeek Zen Free (`opencode/deepseek-v4-flash-free`)** ⚠️ — stores data, use only for public/non-sensitive tasks
-- **Georgian language** — DeepSeek Go and Gemini both handle it well
-- Pipe long outputs through `| tail -100` if context is large
+- **Always run pre-flight check first** — every single time
+- **Always execute via Bash tool** — never just print commands
+- **`--dangerously-skip-permissions`** on all `opencode run` calls
+- **`--skip-trust`** on all `gemini` calls
+- **DeepSeek Zen Free** ⚠️ — stores data, public/non-sensitive only
+- **Georgian** — DeepSeek Go and Gemini both work
+- Pipe long outputs through `| tail -200` if needed
 
 ---
 
@@ -121,10 +185,10 @@ Content/Research (English):
 
 | Tool | Limit |
 |------|-------|
-| opencode/mimo-v2.5-free | Free (unknown cap) |
+| opencode/mimo-v2.5-free | Free |
 | opencode-go/deepseek-v4-flash | 31,650 req/5h |
 | opencode-go/mimo-v2.5-pro | 30,100 req/5h |
 | opencode-go/qwen3.7-plus | 4,300 req/5h |
 | opencode-go/kimi-k2.7-code | 1,350 req/5h |
-| gemini --skip-trust | 1,000 req/day |
+| gemini | 1,000 req/day |
 | Claude Pro | Monthly Pro limit |
